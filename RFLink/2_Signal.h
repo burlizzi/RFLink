@@ -44,5 +44,5 @@ boolean ScanEvent(void);
 // void RawSendRF(void);
 
 void AC_Send(unsigned long data, byte cmd);
-
+void simple_Send(unsigned long data);
 #endif

@@ -303,6 +303,7 @@ boolean Plugin_003(byte function, char *string)
    // ==========================================================================
    // Turn pulses into bits
    // -------------------------------------------
+   devicetype = 4;
    for (i = 0; i < KAKU_CodeLength; i++)
    {
       if (RawSignal.Pulses[4 * i + 1] < j && RawSignal.Pulses[4 * i + 2] > j && RawSignal.Pulses[4 * i + 3] < j && RawSignal.Pulses[4 * i + 4] > j)
@@ -380,6 +381,7 @@ boolean Plugin_003(byte function, char *string)
          }
       } // bad signal
    }
+   //signaltype=7;
    //==================================================================================
    // Sort out devices based on signal type and timing measurements
    // -------------------------------------------
@@ -434,7 +436,7 @@ boolean Plugin_003(byte function, char *string)
    //==================================================================================
    if (signaltype != 0x07)
    {
-      if ((bitstream & 0x700) != 0x600)
+      //if ((bitstream & 0x700) != 0x600)
       { // valid but not real KAKU
          devicetype = 4;
       }

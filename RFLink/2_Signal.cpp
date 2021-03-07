@@ -27,7 +27,7 @@ boolean ScanEvent(void)
     // delay(1); // For Modem Sleep
     if (FetchSignal())
     { // RF: *** data start ***
-      if (PluginRXCall(0, 0))
+      if (PluginRXCall(1, 0))
       { // Check all plugins to see which plugin can handle the received signal.
         RepeatingTimer = millis() + SIGNAL_REPEAT_TIME_MS;
         return true;
@@ -287,17 +287,111 @@ boolean FetchSignal()
   }
 */
 
+
+
+void Arc_Send(unsigned long bitstream)
+{
+   int fpulse = 360; // Pulse width in microseconds
+   int fretrans = 8; // Number of code retransmissions
+   uint32_t fdatabit;
+   uint32_t fdatamask = 0x00000001;
+   uint32_t fsendbuff;
+
+   for (int nRepeat = 0; nRepeat <= fretrans; nRepeat++)
+   {
+      fsendbuff = bitstream;
+      // Send command
+
+      for (int i = 0; i < 12; i++)
+      { // Arc packet is 12 bits
+         // read data bit
+         fdatabit = fsendbuff & fdatamask; // Get most right bit
+         fsendbuff = (fsendbuff >> 1);     // Shift right
+
+         // PT2262 data can be 0, 1 or float. Only 0 and float is used by regular ARC
+         if (fdatabit != fdatamask)
+         { // Write 0
+            digitalWrite(PIN_RF_TX_DATA, HIGH);
+            delayMicroseconds(fpulse * 1);
+            digitalWrite(PIN_RF_TX_DATA, LOW);
+            delayMicroseconds(fpulse * 3);
+            digitalWrite(PIN_RF_TX_DATA, HIGH);
+            delayMicroseconds(fpulse * 1);
+            digitalWrite(PIN_RF_TX_DATA, LOW);
+            delayMicroseconds(fpulse * 3);
+         }
+         else
+         { // Write float
+            digitalWrite(PIN_RF_TX_DATA, HIGH);
+            delayMicroseconds(fpulse * 1);
+            digitalWrite(PIN_RF_TX_DATA, LOW);
+            delayMicroseconds(fpulse * 3);
+            digitalWrite(PIN_RF_TX_DATA, HIGH);
+            delayMicroseconds(fpulse * 3);
+            digitalWrite(PIN_RF_TX_DATA, LOW);
+            delayMicroseconds(fpulse * 1);
+         }
+      }
+      // Send sync bit
+      digitalWrite(PIN_RF_TX_DATA, HIGH);
+      delayMicroseconds(fpulse * 1);
+      digitalWrite(PIN_RF_TX_DATA, LOW); // and lower the signal
+      delayMicroseconds(fpulse * 31);
+   }
+}
+
+#define AC_FPULSE 240 // Pulse width in microseconds
+#define AC_FRETRANS 5 // Number of code retransmissions
+
+
+
+void simple_Send(unsigned long data)
+{
+
+  for (size_t r = 0; r < AC_FRETRANS; r++)
+  {
+    for (size_t i = (1<<23); i; i>>=1)
+    {
+      if(data & i)
+      {
+        //Serial.print('1');
+            digitalWrite(PIN_RF_TX_DATA, HIGH);
+            delayMicroseconds(AC_FPULSE*5);
+            digitalWrite(PIN_RF_TX_DATA, LOW);
+            delayMicroseconds(AC_FPULSE);
+      }
+      else
+      {
+        //Serial.print('0');
+            digitalWrite(PIN_RF_TX_DATA, HIGH);
+            delayMicroseconds(AC_FPULSE);
+            digitalWrite(PIN_RF_TX_DATA, LOW);
+            delayMicroseconds(AC_FPULSE*5);
+      }
+
+
+    }
+        //Serial.println();
+
+    digitalWrite(PIN_RF_TX_DATA, HIGH);
+    delayMicroseconds(AC_FPULSE);
+    digitalWrite(PIN_RF_TX_DATA, LOW);
+    delayMicroseconds(AC_FPULSE * 40); //31*335=10385 40*260=10400
+  }
+  
+
+}
+
+
 /*********************************************************************************************\
    Send bitstream to RF - Plugin 004 (Newkaku) special version
 \*********************************************************************************************/
 void AC_Send(unsigned long data, byte cmd)
 {
-#define AC_FPULSE 260 // Pulse width in microseconds
-#define AC_FRETRANS 5 // Number of code retransmissions
 
-  // Serial.println("Send AC");
-  // Serial.println(data, HEX);
-  // Serial.println(cmd, HEX);
+//   Serial.println("Send AC");
+//  Serial.println(data, HEX);
+//  Serial.println(cmd, HEX);
 
   unsigned long bitstream = 0L;
   byte command = 0;

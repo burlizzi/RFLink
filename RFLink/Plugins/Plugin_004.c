@@ -153,19 +153,12 @@ boolean Plugin_004(byte function, char *string)
 #ifdef PLUGIN_TX_004
 #include "../3_Serial.h"
 #include "../4_Display.h"
+void Arc_Send(unsigned long address);        // sends 0 and float
 
-boolean PluginTX_004(byte function, char *string)
+
+boolean PluginTX_004_AB400D(byte function, char *string)
 {
-   // ON, OFF, ALLON, ALLOFF, ALL 99, 99
-   //10;NewKaku;123456;3;ON;
-   //10;NewKaku;0cac142;2;ON;
-   //10;NewKaku;050515;f;OFF;
-   //10;NewKaku;2100fed;1;ON;
-   //10;NewKaku;000001;10;ON;
-   //10;NewKaku;306070b;f;ON;
-   //10;NewKaku;306070b;10;ON;
-   //01234567890123456789012
-
+ 
    unsigned long bitstream = 0L;    // 32 bits complete packet
    unsigned long ID_bitstream = 0L; // 26 bits Address
    byte Switch_bitstream = 0;       // 4 bits Unit
@@ -176,7 +169,7 @@ boolean PluginTX_004(byte function, char *string)
 
    if (!retrieve_Name("10"))
       return false;
-   if (!retrieve_Name("Newkaku"))
+   if (!retrieve_Name("AB400D"))
       return false;
    if (!retrieve_ID(ID_bitstream))
       return false;
@@ -190,23 +183,82 @@ boolean PluginTX_004(byte function, char *string)
    // --------------- Prepare bitstream ------------
    // Dimming of groups is also possible but not supported yet!
    // when level=0 is it better to transmit just the off command ?
-   // Serial.print("*** Creating bitstream ***\n");
+   // //Serial.print("*** Creating bitstream ***\n");
 
-
-   bitstream = (ID_bitstream << 6); // 26 bits on top
-   bitstream |= Switch_bitstream; // Complete transmitted address
-   // bitstream &= 0xFFFFFFCF;    // Bit 4 and 5 are left for cmd
-   bitstream |= (Cmd_bitstream << 4);
-
-
+   bitstream = ~(ID_bitstream-0x41)&0x1f; 
+   auto sw=1<<Switch_bitstream;
+   sw=~sw&0x1f;
+   bitstream |= sw<<5; // Complete transmitted address
+   bitstream |= (~Cmd_bitstream & 3) << 10;
 
    // bitstream now contains the AC/NewKAKU-bits that have to be transmitted
    // --------------- NEWKAKU SEND ------------
 
-   AC_Send(bitstream, Cmd_dimmer);
-
+   //AC_Send(bitstream, Cmd_dimmer);
+   Arc_Send(bitstream);
    // --------------------------------------
    return true;
+}
+boolean PluginTX_004_tristate(byte function, char *string)
+{
+
+   /*
+       10;intertechno;0F00FFFF0F;0F;F0;off;
+      10;intertechno;0F00FFFF0F;FF;F0;on;
+      */
+   unsigned long bitstream = 0L;    // 32 bits complete packet
+   unsigned long on = 0;          // 2 bits Command
+   unsigned long off = 0;         // 2 bits Command
+   const char * ID;
+   retrieve_Init();
+   if (!retrieve_Name("10"))
+      return false;
+   if (!retrieve_Name("InterTechno"))
+      return false;
+   if (!retrieve_String(ID))
+      return false;
+   for (;*ID;ID++)
+   {
+      bitstream<<=2;
+      bitstream|=*ID=='1'?3:0;
+      bitstream|=tolower(*ID)=='f'?1:0;
+   }
+   on=off=bitstream;
+   if (!retrieve_String(ID))
+      return false;
+
+   for (;*ID;ID++)
+   {
+      on<<=2;
+      on|=*ID=='1'?3:0;
+      on|=tolower(*ID)=='f'?1:0;
+   }
+
+   if (!retrieve_String(ID))
+      return false;
+
+   for (;*ID;ID++)
+   {
+      off<<=2;
+      off|=*ID=='1'?3:0;
+      off|=tolower(*ID)=='f'?1:0;
+   }
+   if (!retrieve_String(ID))
+      return false;
+
+   if (!retrieve_End())
+      return false;
+
+
+   simple_Send(tolower(*(ID+1))=='n'?on:off);
+   //Arc_Send(bitstream);
+   // --------------------------------------
+   return true;
+}
+boolean PluginTX_004(byte function, char *string)
+{
+   return PluginTX_004_AB400D(function,string)||
+          PluginTX_004_tristate(function,string);
 }
 
 #endif // Plugin_TX_004

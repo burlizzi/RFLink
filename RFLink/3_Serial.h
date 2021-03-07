@@ -11,7 +11,7 @@
 #include <Arduino.h>
 
 #define BAUD 921600            // 57600      // Baudrate for serial communication.
-#define INPUT_COMMAND_SIZE 60 // 60         // Maximum number of characters that a command via serial can be.
+#define INPUT_COMMAND_SIZE 4000 // 60         // Maximum number of characters that a command via serial can be.
 #define FOCUS_TIME_MS 50      // 50         // Duration in mSec. that, after receiving serial data from USB only the serial port is checked.
 
 extern char InputBuffer_Serial[INPUT_COMMAND_SIZE];

@@ -84,6 +84,7 @@ void display_VOLT(unsigned int);
 void display_RGBW(unsigned int);
 
 void retrieve_Init();
+boolean retrieve_String(const char *&);
 boolean retrieve_Name(const char *);
 boolean retrieve_ID(unsigned long &);
 boolean retrieve_Switch(byte &);

@@ -25,7 +25,9 @@
 #include "5_Plugin.h"
 #include "6_WiFi_MQTT.h"
 #include "8_OLED.h"
-
+#include <list>
+#include <ArduinoOTA.h>
+#include "fauxmoESP.h"
 #if (defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__))
 #include <avr/power.h>
 #endif
@@ -42,6 +44,7 @@ void CallReboot(void)
   Reboot();
 }
 #endif
+WiFiServer server(1234);
 
 #if (defined(ESP8266) || defined(ESP32))
 void CallReboot(void)
@@ -87,7 +90,8 @@ void setup()
   setup_WIFI();
   start_WIFI();
   setup_MQTT();
-  reconnect();
+  //reconnect();
+  
 #else
   setup_WIFI_OFF();
 #endif // MQTT_ENABLED
@@ -120,13 +124,51 @@ void setup()
 #endif
   pbuffer[0] = 0;
   set_Radio_mode(Radio_RX);
+  server.begin();
+
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  Serial.println("ciao");
+
 }
 
+std::list<WiFiClient> clients;
+extern fauxmoESP fauxmoEsp;
 void loop()
 {
+    ArduinoOTA.handle();
+    fauxmoEsp.handle();
+                              // if you get a client,
+    auto c = server.available();   // listen for incoming clients
+    if (c)
+    {
+      clients.push_back(c);
+      c.println("ciao");
+    }
+      
+
+    clients.remove_if([](WiFiClient & c){return !c;});
+    //Serial.println(clients.size());
 #ifdef MQTT_ENABLED
-  checkMQTTloop();
-  sendMsg();
+  //checkMQTTloop();
+  //sendMsg();
 #endif
 
 #ifdef SERIAL_ENABLED
@@ -139,21 +181,33 @@ void loop()
     sendMsg();
 }
 
-void sendMsg()
+void sendMsg(char * pbuffer)
 {
   if (pbuffer[0] != 0)
   {
+    for(auto& client:clients)
+        {
+          client.print(pbuffer);
+          client.flush();
+        }
+        
 #ifdef SERIAL_ENABLED
     Serial.print(pbuffer);
 #endif
 #ifdef MQTT_ENABLED
-    publishMsg();
+    //publishMsg();
 #endif
 #ifdef OLED_ENABLED
     print_OLED();
 #endif
-    pbuffer[0] = 0;
+
   }
 }
+void sendMsg()
+{
+  sendMsg(pbuffer);
+  pbuffer[0] = 0;
+}
+
 
 /*********************************************************************************************/

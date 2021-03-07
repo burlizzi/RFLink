@@ -5,6 +5,7 @@
 // * More details in RFLink.ino file   * //
 // ************************************* //
 
+
 #include <Arduino.h>
 // #include <ArduinoOTA.h>
 #include "RFLink.h"
@@ -12,6 +13,16 @@
 #include "4_Display.h"
 #include "6_WiFi_MQTT.h"
 #include "6_Credentials.h"
+#include "7_Utils.h"
+
+#include <EEPROM.h>
+#include <ESPAsyncWebServer.h>
+#include "fauxmoESP.h"
+
+
+#include <FS.h>
+
+
 
 #ifdef ESP32
 #include <WiFi.h>
@@ -63,28 +74,114 @@ void setup_WIFI()
 #endif // USE_DHCP
 }
 
+#define MAX_STORAGE INPUT_COMMAND_SIZE
+
+extern fauxmoESP fauxmoEsp;
+AsyncWebServer webserver(80);
+
+void serverSetup() {
+
+    // Custom entry point (not required by the library, here just as an example)
+    webserver.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+        //request->send(200, "text/html", "Hello, world");
+         request->send(200, "text/html", 
+          "<form action=\"/\" method=\"POST\">"
+             "SSID:<input type=\"text\" name=\"ssid\"></br>"
+             "Password:<input type=\"text\" name=\"password\"></br>"
+             "<input type=\"submit\" value=\"Connect\"></form>");
+    });
+    webserver.on("/", HTTP_POST, [](AsyncWebServerRequest *request){
+      request->send(200, "text/html", request->arg("ssid"));
+      File file = SPIFFS.open("credentials", "w");                 // Open it
+      file.write(request->arg("ssid").c_str());
+      file.write("\n");
+      file.write(request->arg("password").c_str());
+      file.close();
+      
+    });
+    // These two callbacks are required for gen1 and gen3 compatibility
+    webserver.onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+        if (fauxmoEsp.process(request->client(), request->method() == HTTP_GET, request->url(), String((char *)data))) return;
+        // Handle any other body request here...
+    });
+    webserver.onNotFound([](AsyncWebServerRequest *request) {
+       // Serial.println("*******************************NOT FOUND********************************");
+       // Serial.println(request->method());
+        String body = (request->hasParam("body", true)) ? request->getParam("body", true)->value() : String();
+        if (fauxmoEsp.process(request->client(), request->method() == HTTP_GET, request->url(), body)) return;
+        //Serial.println("really not found");
+        // Handle not found request here...
+    });
+
+    // Start the server
+    webserver.begin();
+
+}
+
 void start_WIFI()
 {
-  WiFi.mode(WIFI_STA);
+  
 
+  Serial.print(F("starting WiFi\t\t"));
+  Serial.flush();
+  
+  SPIFFS.begin();
+
+  if (SPIFFS.exists("credentials")) {                            // If the file exists
+    Serial.print(F("found credentials\t\t"));
+
+    File file = SPIFFS.open("credentials", "r");                 // Open it
+    auto ssid=file.readStringUntil('\n');
+    auto password=file.readString();
+    file.close();                                       // Then close the file again
+
+    Serial.println(F("config valid"));
+    Serial.flush();
+    WiFi.mode(WIFI_STA);
   // We start by connecting to a WiFi network
-  Serial.print(F("WiFi SSID :\t\t"));
-  Serial.println(WIFI_SSID.c_str());
-  Serial.print(F("WiFi Connection :\t"));
-  WiFi.begin(WIFI_SSID.c_str(), WIFI_PSWD.c_str());
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
+    Serial.print(F("WiFi SSID :\t\t"));
+    //Serial.println(cfg->ssid);
+    //Serial.println(cfg->pwd);
+    Serial.print(F("WiFi Connection :\t"));
+    
+    WiFi.begin(ssid.c_str(), password.c_str());
+    //WiFi.begin("FRITZ!Box 7490", "58616363503050908719");
+    
+    for (int i=0;WiFi.status() != WL_CONNECTED && i<200;i++)
+    {
+      delay(500);
+      Serial.print(".");
+    }
   }
+  else
+  {
+    Serial.println(F("config invalid"));
+    Serial.flush();
+
+  }
+
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    stop_WIFI();
+    Serial.print(F("WiFi SSID :\t\t"));
+    Serial.println(WIFI_SSID);
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAP(WIFI_SSID.c_str());
+    
+
+    Serial.print("IP address: ");
+    Serial.println(WiFi.softAPIP());
+
+  }  
+
+  
 
   Serial.println(F("Established"));
   Serial.print(F("WiFi IP :\t\t"));
   Serial.println(WiFi.localIP());
   Serial.print(F("WiFi RSSI :\t\t"));
   Serial.println(WiFi.RSSI());
-
+  serverSetup();
   /*
   ArduinoOTA.onStart([]() {
     String type;
@@ -160,14 +257,14 @@ void reconnect()
 {
   bResub = true;
 
-  while (!MQTTClient.connected())
-  {
+//  if (!MQTTClient.connected())
+ // {
     if (WiFi.status() != WL_CONNECTED)
     {
       stop_WIFI();
       start_WIFI();
     }
-
+/*
     Serial.print(F("MQTT Server :\t\t"));
     Serial.println(MQTT_SERVER.c_str());
     Serial.print(F("MQTT Connection :\t"));
@@ -205,6 +302,7 @@ void reconnect()
         delay(500); // delay(5000) may cause hang
     }
   }
+  */
 }
 
 void publishMsg()
@@ -227,6 +325,7 @@ void checkMQTTloop()
 
     if (bResub)
     {
+      
       // Once connected, resubscribe
       MQTTClient.subscribe(MQTT_TOPIC_IN.c_str());
       bResub = false;

@@ -174,5 +174,14 @@ int add_bytes(uint8_t const message[], unsigned num_bytes);
 /// @param num_bytes number of bytes to sum
 /// @return summation value
 int add_nibbles(uint8_t const message[], unsigned num_bytes);
-
+/*
+struct config
+{
+    inline bool valid(){return magic==0x1cal;}
+    int magic;
+    char ssid[50];
+    char pwd[50];
+    char alexa[2048];
+};
+*/
 #endif /* INCLUDE_UTIL_H_ */

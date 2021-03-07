@@ -357,11 +357,25 @@ char retrieveBuffer[INPUT_COMMAND_SIZE];
 char *ptr;
 const char c_delim[2] = ";";
 char c_label[12];
-
 void retrieve_Init()
 {
   memcpy(retrieveBuffer, InputBuffer_Serial, INPUT_COMMAND_SIZE);
   ptr = strtok(retrieveBuffer, c_delim);
+}
+boolean retrieve_String(const char *& string)
+{
+  if (ptr != NULL)
+  {
+    strcpy(c_label, "ID=");
+    if (strncasecmp(ptr, c_label, strlen(c_label)) == 0)
+      ptr += strlen(c_label);
+    string=ptr;
+    ptr = strtok(NULL, c_delim);
+    return true;
+  }
+  else
+    return false;
+
 }
 
 boolean retrieve_Name(const char *c_Name)
@@ -369,12 +383,17 @@ boolean retrieve_Name(const char *c_Name)
   if (ptr != NULL)
   {
     if (strncasecmp(ptr, c_Name, strlen(c_Name)) != 0)
-      return false;
+      {
+        return false;
+      }
     ptr = strtok(NULL, c_delim);
     return true;
   }
   else
+  {
     return false;
+  }
+    
 }
 
 boolean retrieve_ID(unsigned long &ul_ID)
@@ -415,16 +434,22 @@ boolean retrieve_Switch(byte &b_Switch)
 
   if (ptr != NULL)
   {
+    //Serial.println(ptr);
     strcpy(c_label, "SWITCH=");
     if (strncasecmp(ptr, c_label, strlen(c_label)) == 0)
       ptr += strlen(c_label);
+   //Serial.println('a');
+   //Serial.println(ptr);
+   //Serial.println(strlen(ptr));
 
-    if (strlen(ptr) > 1)
+    if (strlen(ptr) < 1)
       return false;
+   //Serial.println('b');
 
     for (byte i = 0; i < strlen(ptr); i++)
       if (!isxdigit(ptr[i]))
         return false;
+   //Serial.println('c');
 
     strcpy(c_Switch, ptr);
 
@@ -432,6 +457,7 @@ boolean retrieve_Switch(byte &b_Switch)
     b_Switch--; // 1 to 16 -> 0 to 15 (displayed value is one more)
     if (b_Switch > 0xF)
       return false; // invalid address
+   //Serial.println('d');
 
     ptr = strtok(NULL, c_delim);
     return true;
@@ -478,7 +504,7 @@ boolean retrieve_Command(byte &b_Cmd, byte &b_Cmd2)
     // Group
     switch (b_Cmd2)
     {
-    case VALUE_ALLON:
+    case VALUE_OFF:
     case VALUE_ALLOFF:
       b_Cmd |= B10;
       break;

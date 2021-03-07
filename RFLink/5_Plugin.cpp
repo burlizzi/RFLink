@@ -10,6 +10,9 @@
 #include "2_Signal.h"
 #include "5_Plugin.h"
 
+
+
+
 boolean (*Plugin_ptr[PLUGIN_MAX])(byte, char *); // Receive plugins
 byte Plugin_id[PLUGIN_MAX];
 byte Plugin_State[PLUGIN_MAX];
@@ -512,6 +515,10 @@ boolean QRFUDebug = QRFUDebug_0; // debug RF signals with plugin 254 but no mult
 #include "./Plugins/Plugin_120.c"
 #endif
 
+#ifdef PLUGIN_230
+#include "./Plugins/Plugin_230.c"
+#endif
+
 #ifdef PLUGIN_250
 #include "./Plugins/Plugin_250.c"
 #endif
@@ -531,6 +538,7 @@ boolean QRFUDebug = QRFUDebug_0; // debug RF signals with plugin 254 but no mult
 #ifdef PLUGIN_254
 #include "./Plugins/Plugin_254.c"
 #endif
+
 
 #ifdef PLUGIN_255
 #include "./Plugins/Plugin_255.c"
@@ -1630,6 +1638,15 @@ void PluginInit(void)
   Plugin_ptr[x++] = &Plugin_120;
 #endif
 
+#ifdef PLUGIN_230
+  Plugin_id[x] = 230;
+#ifndef ARDUINO_AVR_UNO
+  Plugin_Description[x] = PLUGIN_DESC_230;
+#endif
+  Plugin_State[x] = P_Enabled;
+  Plugin_ptr[x++] = &Plugin_230;
+#endif
+
 #ifdef PLUGIN_250
   Plugin_id[x] = 250;
 #ifndef ARDUINO_AVR_UNO
@@ -2199,6 +2216,11 @@ void PluginTXInit(void)
 #ifdef PLUGIN_TX_100
   PluginTX_id[x] = 100;
   PluginTX_ptr[x++] = &PluginTX_100;
+#endif
+
+#ifdef PLUGIN_TX_230
+  PluginTX_id[x] = 230;
+  PluginTX_ptr[x++] = &PluginTX_230;
 #endif
 
 #ifdef PLUGIN_TX_250

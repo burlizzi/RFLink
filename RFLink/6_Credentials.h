@@ -11,11 +11,10 @@
 #include "RFLink.h"
 
 // local AP
-String WIFI_SSID = "xxx";
-String WIFI_PSWD = "xxx";
+String WIFI_SSID = "RFLink";
 
 // DHCP or Static IP
-// #define USE_DHCP
+#define USE_DHCP
 #ifndef USE_DHCP
 String WIFI_IP = "192.168.1.xxx";
 String WIFI_DNS = "192.168.1.xxx";
@@ -27,7 +26,7 @@ String WIFI_SUBNET = "255.255.255.0";
 String MQTT_SERVER = "192.168.1.xxx";
 String MQTT_PORT = "1883";
 String MQTT_ID = "ESP8266-RFLink_xxx";
-String MQTT_USER = "xxx";
+String MQTT_USER = "esp";
 String MQTT_PSWD = "xxx";
 
 // MQTT Topic

@@ -11,16 +11,46 @@
 #include "3_Serial.h"
 #include "4_Display.h"
 #include "5_Plugin.h"
+#include <WiFiClient.h>
+#include <list>
+
 
 char InputBuffer_Serial[INPUT_COMMAND_SIZE];
-
+boolean ReadQueue();
 boolean ReadSerial();
+boolean ReadTcp();
 boolean CheckCmd();
-boolean CopySerial(char *);
+boolean CopySerial(const char *);
 /*********************************************************************************************/
 
 boolean CheckSerial()
 {
+
+  
+  if (ReadQueue())
+  {
+#ifdef SERIAL_ENABLED
+    Serial.flush();
+    Serial.print(F("Message arrived [Alexa] "));
+    Serial.println(InputBuffer_Serial);
+#endif
+    if (CheckCmd())
+      return true;
+  }
+
+
+   if (ReadTcp())
+  {
+#ifdef SERIAL_ENABLED
+    Serial.flush();
+    Serial.print(F("Message arrived [Tcp] "));
+    Serial.println(InputBuffer_Serial);
+#endif
+    if (CheckCmd())
+      return true;
+  }
+
+
   if (ReadSerial())
   {
 #ifdef SERIAL_ENABLED
@@ -34,9 +64,10 @@ boolean CheckSerial()
   return false;
 }
 
+extern std::list<WiFiClient> clients;
 boolean CheckMQTT(byte *byte_in)
 {
-  if (CopySerial((char *)byte_in))
+  if (CopySerial((const char *)byte_in))
   {
 #ifdef SERIAL_ENABLED
     Serial.flush();
@@ -49,7 +80,7 @@ boolean CheckMQTT(byte *byte_in)
   return false;
 }
 
-boolean CopySerial(char *src)
+boolean CopySerial(const char *src)
 {
   return (strncpy(InputBuffer_Serial, src, INPUT_COMMAND_SIZE - 2));
 }
@@ -91,6 +122,47 @@ boolean ReadSerial()
   }
   return false;
 }
+
+
+boolean ReadTcp()
+{
+  // TCP: *************** Check if there is data ready on the tcp port 1234 **********************
+  static byte TcpInByte;        // incoming character value
+  static byte TcpInByteCounter; // number of bytes counter
+  static unsigned long FocusTimer; // Timer to keep focus on the task during communication
+  for(auto& client:clients)
+
+  if (client.available())
+  {
+    TcpInByteCounter = 0;
+
+    FocusTimer = millis() + FOCUS_TIME_MS;
+    while (true)
+    {
+      if (client.available())
+      {
+        TcpInByte = client.read();
+
+        if (isprint(TcpInByte))
+          InputBuffer_Serial[TcpInByteCounter++] = TcpInByte;
+
+        FocusTimer = millis() + FOCUS_TIME_MS;
+      }
+
+      if ((TcpInByte == '\n') || (millis() >= FocusTimer) || (TcpInByteCounter >= (INPUT_COMMAND_SIZE - 1)))
+      // new line character or timeout or buffer full
+      {
+        // if (InputBuffer_Serial[SerialInByteCounter - 1] == ';')
+        //   InputBuffer_Serial[SerialInByteCounter - 1] = 0; // remove last ";" char
+        // else
+        InputBuffer_Serial[TcpInByteCounter] = 0; // serial data is complete
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 
 boolean CheckCmd()
 {
@@ -209,7 +281,7 @@ boolean CheckCmd()
         // -------------------------------------------------------
         set_Radio_mode(Radio_TX);
 
-        if (PluginTXCall(0, InputBuffer_Serial))
+        if (PluginTXCall(1, InputBuffer_Serial))
           ValidCommand = 1;
         else // Answer that an invalid command was received?
           ValidCommand = 2;
