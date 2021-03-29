@@ -100,7 +100,7 @@ boolean PluginTX_230(byte function, char *string)
         }
         else
             DEBUG_MSG_FAUXMO("invalid EEPROM");
-        return true;
+        //return true;
         
     }
     DEBUG_MSG_FAUXMO("always");
